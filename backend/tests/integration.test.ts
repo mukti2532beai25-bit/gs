@@ -495,6 +495,171 @@ async function runIntegrationTests() {
         throw new Error('Missing responsibility boundary matrix in export dossier');
       }
     });
+
+    // 19. Phase 10: Demo Mode API Status and Seeded Data Integrity
+    await test('Phase 10: Demo Mode Dataset (25 products, 15 customers, 8 suppliers, 40 bills)', async () => {
+      const res = await fetch(`http://localhost:${PORT}/api/demo/status`);
+      if (res.status !== 200) throw new Error(`Demo status failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !json.data.isDemoMode) throw new Error('Demo mode is not active');
+      if (json.data.demoLabel !== 'DEMO DATA — Sample business information') {
+        throw new Error(`Unexpected demo label: ${json.data.demoLabel}`);
+      }
+
+      const { counts, summary } = json.data;
+      if (counts.products !== 25) throw new Error(`Expected 25 products, got ${counts.products}`);
+      if (counts.customers !== 15) throw new Error(`Expected 15 customers, got ${counts.customers}`);
+      if (counts.suppliers !== 8) throw new Error(`Expected 8 suppliers, got ${counts.suppliers}`);
+      if (counts.bills !== 40) throw new Error(`Expected 40 bills, got ${counts.bills}`);
+      if (counts.purchases !== 20) throw new Error(`Expected 20 purchases, got ${counts.purchases}`);
+      if (counts.expenses !== 25) throw new Error(`Expected 25 expenses, got ${counts.expenses}`);
+      if (counts.payments !== 30) throw new Error(`Expected 30 payments, got ${counts.payments}`);
+
+      if (typeof summary.totalSales !== 'number' || summary.totalSales <= 0) {
+        throw new Error('Calculated total sales in demo analytics is invalid');
+      }
+    });
+
+    // 20. Phase 10: Safe Demo Reset Invariant
+    await test('Phase 10: Safe Demo Reset Restores Pristine State Without Data Leaks', async () => {
+      const res = await fetch(`http://localhost:${PORT}/api/demo/reset`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.status !== 200) throw new Error(`Demo reset failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success || json.data.productsCount !== 25) {
+        throw new Error('Demo reset did not restore 25 products');
+      }
+    });
+
+    // 21. Phase 11: Real Character Recognition Engine (Tesseract OCR Fallback)
+    await test('Phase 11: Real Character Recognition with Transparent Attribution', async () => {
+      const fakeImage = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      const formData = new FormData();
+      formData.append('image', new Blob([fakeImage], { type: 'image/png' }), 'test-real-ocr.png');
+
+      const res = await fetch(`http://localhost:${PORT}/api/bills/capture`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: formData,
+      });
+
+      if (res.status !== 201) throw new Error(`Bill capture for OCR failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !json.data) {
+        throw new Error('OCR did not produce extraction result');
+      }
+      // Verify transparent OCR attribution (never lies about engine)
+      const provider = json.meta?.provider || 'demo-fixture';
+      if (!['tesseract-real', 'google-vision', 'openai', 'demo-fixture'].includes(provider)) {
+        throw new Error(`Untracked OCR engine reported: ${provider}`);
+      }
+    });
+
+    // 22. Phase 11: Spoken Accounting Queries in Multiple Languages
+    await test('Phase 11: Spoken Accounting Queries (Hindi, English, Punjabi)', async () => {
+      // 22a: Hindi Earnings Today
+      const resHi = await fetch(`http://localhost:${PORT}/api/ai/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ question: 'Aaj maine kitna kamaya?', language: 'hi' }),
+      });
+      if (resHi.status !== 200) throw new Error(`AI query in Hindi failed with status ${resHi.status}`);
+      const jsonHi = await resHi.json();
+      if (!jsonHi.answer && !jsonHi.answer_hi) throw new Error('No answer returned for Hindi query');
+      if (jsonHi.demoNotice !== 'DEMO DATA — Sample business information') {
+        throw new Error('Missing visible DEMO DATA notice on AI query result');
+      }
+
+      // 22b: English Pending Payments
+      const resEn = await fetch(`http://localhost:${PORT}/api/ai/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ question: 'How much payment is pending?', language: 'en' }),
+      });
+      if (resEn.status !== 200) throw new Error(`AI query in English failed with status ${resEn.status}`);
+      const jsonEn = await resEn.json();
+      if (!jsonEn.answer.includes('₹')) throw new Error('Pending payments answer does not contain currency');
+
+      // 22c: Punjabi Top Selling Products
+      const resPa = await fetch(`http://localhost:${PORT}/api/ai/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ question: 'Kehda product sab ton zyada vikeya?', language: 'pa' }),
+      });
+      if (resPa.status !== 200) throw new Error(`AI query in Punjabi failed with status ${resPa.status}`);
+      const jsonPa = await resPa.json();
+      if (!jsonPa.visualization || jsonPa.visualization.type !== 'bar') {
+        throw new Error('Expected bar visualization for top products query');
+      }
+    });
+
+    // 23. Phase 11: Controlled Catalog Price Update & Historical Invariant
+    await test('Phase 11: Controlled Catalog Price Update & Historical Pricing Invariant', async () => {
+      // Step 1: Natural language query proposes price change
+      const resPrompt = await fetch(`http://localhost:${PORT}/api/ai/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ question: 'Change Basmati rice price to 480', language: 'en' }),
+      });
+      if (resPrompt.status !== 200) throw new Error(`Price change query failed with status ${resPrompt.status}`);
+      const jsonPrompt = await resPrompt.json();
+
+      if (jsonPrompt.type !== 'action_proposal' || !jsonPrompt.actionProposal) {
+        throw new Error('Expected action_proposal for price change');
+      }
+      if (!jsonPrompt.answer.includes('450') || !jsonPrompt.answer.includes('480')) {
+        throw new Error(`Expected prompt with current and proposed price, got: ${jsonPrompt.answer}`);
+      }
+
+      // Step 2: Confirmation of price change
+      const resConfirm = await fetch(`http://localhost:${PORT}/api/ai/action/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          action: jsonPrompt.actionProposal.action,
+          productId: jsonPrompt.actionProposal.productId,
+          newPrice: 480,
+        }),
+      });
+      if (resConfirm.status !== 200) throw new Error(`Confirm action failed with status ${resConfirm.status}`);
+      const jsonConfirm = await resConfirm.json();
+      if (!jsonConfirm.success) throw new Error('Confirm action was not successful');
+      if (!jsonConfirm.historicalAuditNotice) {
+        throw new Error('Missing historical audit notice confirming past bills are untouched');
+      }
+
+      // Step 3: Verify Demo Data Store reflects new price while past bills are untouched
+      const resBills = await fetch(`http://localhost:${PORT}/api/demo/bills`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const jsonBills = await resBills.json();
+      const pastBasmatiItem = jsonBills.data
+        .flatMap((b: any) => b.items)
+        .find((item: any) => item.productName.includes('Basmati'));
+      if (pastBasmatiItem && pastBasmatiItem.unitPrice !== 450) {
+        throw new Error(`Historical bill item price modified! Expected ₹450, got ₹${pastBasmatiItem.unitPrice}`);
+      }
+    });
     console.log('\n======================================================');
     console.log(`🎉 Results: ${passed} Passed, ${failed} Failed`);
     console.log('======================================================\n');

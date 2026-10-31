@@ -2,28 +2,9 @@ import { Response, NextFunction } from 'express';
 import { prisma } from '../config/database.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import { updateBusinessSchema, createCustomerSchema, createProductSchema } from '../validators/businessValidators.js';
+import { demoDataRepo, DEMO_BUSINESS_PROFILE } from '../services/demo/demoDataStore.js';
 
-const DEMO_BUSINESS = {
-  id: '00000000-0000-0000-0000-000000000002',
-  name: 'Sharma Kirana & General Store',
-  gstin: '07AAAAA0000A1Z5',
-  address: 'Shop No. 12, Main Market, Chandni Chowk, Delhi - 110006',
-  phone: '+91 98765 43210',
-  _count: { bills: 12, customers: 3, products: 4, vocabulary: 5 },
-};
-
-let demoCustomers = [
-  { id: 'cust-1', name: 'Ramesh Kumar', phone: '+91 98765 11001', address: 'Shop 4, Market Road', _count: { bills: 4 } },
-  { id: 'cust-2', name: 'Suresh Patel', phone: '+91 98765 22002', address: '12 Railway Line', _count: { bills: 6 } },
-  { id: 'cust-3', name: 'Priya Sharma', phone: '+91 98765 33003', address: '44 Gandhi Chowk', _count: { bills: 2 } },
-];
-
-let demoProducts = [
-  { id: 'prod-1', name: 'Basmati Rice Premium 5kg', unit: 'bag', defaultPrice: 450.0, category: 'Grains' },
-  { id: 'prod-2', name: 'Amul Full Cream Milk 1L', unit: 'pouch', defaultPrice: 66.0, category: 'Dairy' },
-  { id: 'prod-3', name: 'Aashirvaad Shudh Chakki Atta 10kg', unit: 'bag', defaultPrice: 380.0, category: 'Flour' },
-  { id: 'prod-4', name: 'Tata Salt 1kg', unit: 'packet', defaultPrice: 28.0, category: 'Spices' },
-];
+const DEMO_BUSINESS = DEMO_BUSINESS_PROFILE;
 
 export async function getBusiness(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -82,7 +63,18 @@ export async function listCustomers(req: AuthenticatedRequest, res: Response, ne
       });
       res.json({ success: true, data: customers });
     } catch {
-      res.json({ success: true, data: demoCustomers });
+      res.json({
+        success: true,
+        data: demoDataRepo.getCustomers().map((c) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          address: c.address,
+          gstin: c.gstin,
+          balanceDue: c.balanceDue,
+          _count: { bills: Math.floor(c.totalBilled / 800) },
+        })),
+      });
     }
   } catch (error) {
     next(error);
@@ -105,9 +97,9 @@ export async function createCustomer(req: AuthenticatedRequest, res: Response, n
         name: input.name,
         phone: input.phone || '',
         address: input.address || '',
+        balanceDue: 0,
         _count: { bills: 0 },
       };
-      demoCustomers.push(newCust);
       res.status(201).json({ success: true, data: newCust });
     }
   } catch (error) {
@@ -125,7 +117,19 @@ export async function listProducts(req: AuthenticatedRequest, res: Response, nex
       });
       res.json({ success: true, data: products });
     } catch {
-      res.json({ success: true, data: demoProducts });
+      res.json({
+        success: true,
+        data: demoDataRepo.getProducts().map((p) => ({
+          id: p.id,
+          name: p.name,
+          unit: p.unit,
+          defaultPrice: p.currentPrice,
+          category: p.category,
+          stockQty: p.stockQty,
+          reorderLevel: p.reorderLevel,
+          inventoryAlert: p.inventoryAlert,
+        })),
+      });
     }
   } catch (error) {
     next(error);
@@ -151,7 +155,6 @@ export async function createProduct(req: AuthenticatedRequest, res: Response, ne
         category: input.category || 'General',
         aliases: '[]',
       };
-      demoProducts.push(newProd);
       res.status(201).json({ success: true, data: newProd });
     }
   } catch (error) {
@@ -269,38 +272,37 @@ export async function getBusinessAnalytics(req: AuthenticatedRequest, res: Respo
         },
       });
     } catch {
-      // Demo fallback data
+      // Demo fallback data powered by DemoDataRepository
+      const analytics = demoDataRepo.computeAnalytics();
       res.json({
         success: true,
         data: {
           range,
-          totalRevenue: 5500,
-          verifiedRevenue: 4650,
-          wholesaleExpenses: 4290,
-          netProfit: 1210,
-          profitMargin: 22.0,
+          totalRevenue: analytics.totalSales,
+          verifiedRevenue: analytics.totalSales,
+          wholesaleExpenses: analytics.totalPurchases,
+          totalExpenses: analytics.totalExpenses,
+          netProfit: analytics.estimatedProfit,
+          profitMargin: analytics.totalSales > 0 ? Number(((analytics.estimatedProfit / analytics.totalSales) * 100).toFixed(1)) : 22.0,
           profitCriteriaNotice:
-            'Net profit is calculated by subtracting wholesale procurement costs from recorded customer sales receipts.',
-          totalBills: 3,
-          avgBillValue: 1833,
-          pendingReviewsCount: 1,
-          pendingReviewsAmount: 850,
-          totalCustomers: 3,
-          repeatCustomerRate: 67,
-          totalProducts: 4,
-          topProducts: [
-            { name: 'Basmati Rice Premium 5kg', qty: 5, revenue: 2050 },
-            { name: 'Aashirvaad Shudh Chakki Atta 10kg', qty: 5, revenue: 1900 },
-            { name: 'Amul Full Cream Milk 1L', qty: 9, revenue: 594 },
-            { name: 'Amul Pure Desi Ghee 1kg', qty: 1, revenue: 520 },
-            { name: 'Tata Salt 1kg', qty: 3, revenue: 84 },
-          ],
+            'Net profit is calculated by subtracting wholesale procurement costs and operating expenses from verified sales receipts.',
+          totalBills: analytics.totalBillsCount,
+          avgBillValue: analytics.totalBillsCount > 0 ? Math.round(analytics.totalSales / analytics.totalBillsCount) : 0,
+          pendingReviewsCount: 2,
+          pendingReviewsAmount: analytics.pendingCustomerPayments,
+          totalCustomers: analytics.totalCustomersCount,
+          repeatCustomerRate: 73,
+          totalProducts: analytics.totalProductsCount,
+          topProducts: analytics.bestSellingProducts.map((p) => ({ name: p.name, qty: p.quantity, revenue: p.revenue })),
           categories: [
-            { name: 'Grains', count: 1, percent: 25 },
-            { name: 'Flour', count: 1, percent: 25 },
-            { name: 'Dairy', count: 1, percent: 25 },
-            { name: 'Spices', count: 1, percent: 25 },
+            { name: 'Grains & Pulses', count: 6, percent: 24 },
+            { name: 'Flour & Grains', count: 4, percent: 16 },
+            { name: 'Dairy & Eggs', count: 4, percent: 16 },
+            { name: 'Spices & Seasoning', count: 5, percent: 20 },
+            { name: 'Household & Personal Care', count: 6, percent: 24 },
           ],
+          inventoryAlertsCount: analytics.inventoryAlerts.length,
+          label: 'DEMO DATA — Sample business information',
         },
       });
     }

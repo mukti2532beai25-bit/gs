@@ -34,12 +34,22 @@ interface Message {
 }
 
 
+const DEMO_VOICE_QUERIES = [
+  { text: 'How much did I earn today?', translation_hi: 'Aaj maine kitna kamaya?', translation_pa: 'Ajj meri kinni sale hoi?' },
+  { text: 'What were my total sales this month?', translation_hi: 'Is mahine meri kitni sale hui?', translation_pa: 'Is mahine kinni sale hoyi?' },
+  { text: 'Which products sold the most?', translation_hi: 'Sabse zyada kaunsa product bika?', translation_pa: 'Kehda product sab ton zyada vikeya?' },
+  { text: 'Who are my top five customers?', translation_hi: 'Mere top 5 customers kaun hain?', translation_pa: 'Mere top 5 customer kehde ne?' },
+  { text: 'How much payment is pending?', translation_hi: 'Kin customers ka payment pending hai?', translation_pa: 'Kinne paise lene baaki ne?' },
+  { text: 'Show my expenses this month.', translation_hi: 'Is mahine ke kharche dikhao.', translation_pa: 'Is mahine de kharche dikhao.' },
+  { text: 'Change Basmati rice price to 480', translation_hi: 'Basmati chawal ka daam 480 karo', translation_pa: 'Basmati chawal da rate 480 karo' },
+];
+
 export default function AskYourBusiness() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome-1',
       sender: 'assistant',
-      text: 'Namaste! I am your **BahiVerse AI Business Assistant**. Ask me anything about your shop’s revenue, best-selling products, top customers, or ask me to update a product price in your catalog.\n\n*Try asking: "What is my total revenue?" or "Change Basmati rice price to 480"*',
+      text: 'Namaste! I am your **BahiVerse AI Voice & Business Assistant**.\n\nYou can query shop performance, check today’s earnings, pending payments, or update your product catalog using English, Hindi, or Punjabi.\n\n*Try asking: "Aaj maine kitna kamaya?" or "Change Basmati rice price to 480"*',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -47,7 +57,7 @@ export default function AskYourBusiness() {
   const [language, setLanguage] = useState<'en' | 'hi' | 'pa'>('en');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>(DEMO_VOICE_QUERIES);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -56,14 +66,20 @@ export default function AskYourBusiness() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Load query suggestions
+  // Load query suggestions with demo fallback
   useEffect(() => {
     aiApi
       .suggestions(language)
       .then((res) => {
-        if (res.data) setSuggestions(res.data);
+        if (res.data && res.data.length > 0) {
+          setSuggestions(res.data);
+        } else {
+          setSuggestions(DEMO_VOICE_QUERIES);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setSuggestions(DEMO_VOICE_QUERIES);
+      });
   }, [language]);
 
   // Handle Speech Recognition

@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { demoDataRepo, DEMO_BUSINESS_ID } from '../demo/demoDataStore.js';
 
 export interface CaReconciliationCheck {
   id: string;
@@ -39,8 +40,91 @@ export const RESPONSIBILITY_BOUNDARIES = {
 /**
  * Gathers operational data for a given business and period.
  */
-export function getOperationalData(_businessId: string, _dateFrom?: string, _dateTo?: string) {
-  // Rich operational dataset with realistic kirana/retail business figures
+export function getOperationalData(businessId: string, dateFrom?: string, dateTo?: string) {
+  // If demo business, pull from isolated demo dataset
+  if (businessId === DEMO_BUSINESS_ID || !businessId || businessId === '00000000-0000-0000-0000-000000000002') {
+    let bills = demoDataRepo.getBills();
+    let purchasesList = demoDataRepo.getPurchases();
+    let expensesList = demoDataRepo.getExpenses();
+
+    if (dateFrom) {
+      bills = bills.filter((b) => b.billDate >= dateFrom);
+      purchasesList = purchasesList.filter((p) => p.date >= dateFrom);
+      expensesList = expensesList.filter((e) => e.date >= dateFrom);
+    }
+    if (dateTo) {
+      bills = bills.filter((b) => b.billDate <= dateTo);
+      purchasesList = purchasesList.filter((p) => p.date <= dateTo);
+      expensesList = expensesList.filter((e) => e.date <= dateTo);
+    }
+
+    const sales = bills.map((b) => {
+      const cust = demoDataRepo.getCustomers().find((c) => c.id === b.customerId);
+      const isB2B = b.customerName.includes('Karyana') || b.customerName.includes('Depot') || b.customerName.includes('Store');
+      return {
+        invoiceNumber: b.billNumber,
+        date: b.billDate,
+        customerName: b.customerName,
+        customerGstin: cust?.gstin || (isB2B ? '03AAAAA1111A1Z1' : ''),
+        supplyType: isB2B ? 'B2B' : 'B2C',
+        taxableValue: Math.round(b.subtotal * 100) / 100,
+        cgst: Math.round((b.taxAmount / 2) * 100) / 100,
+        sgst: Math.round((b.taxAmount / 2) * 100) / 100,
+        igst: 0.0,
+        totalAmount: b.totalAmount,
+        status: b.status,
+        notes: `Payment via ${b.paymentMode} (${b.captureMode})`,
+      };
+    });
+
+    const purchases = purchasesList.map((p) => ({
+      billNumber: p.billNumber,
+      date: p.date,
+      supplierName: p.supplierName,
+      supplierGstin: p.supplierGstin,
+      taxableValue: p.taxableValue,
+      cgst: p.cgst,
+      sgst: p.sgst,
+      igst: p.igst,
+      totalAmount: p.totalAmount,
+      status: p.status,
+      itcEligible: p.itcEligible,
+    }));
+
+    const expenses = expensesList.map((e) => ({
+      date: e.date,
+      category: e.category,
+      description: e.description,
+      amount: e.amount,
+      paymentMode: e.paymentMode,
+      voucherNo: e.voucherNo,
+    }));
+
+    const outstanding = [
+      ...demoDataRepo.getCustomers().map((c) => ({
+        entityName: c.name,
+        type: 'Customer',
+        phone: c.phone,
+        totalBilled: c.totalBilled,
+        totalReceived: c.totalPaid,
+        balanceDue: c.balanceDue,
+        status: c.balanceDue > 0 ? `₹${c.balanceDue} pending` : 'Settled',
+      })),
+      ...demoDataRepo.getSuppliers().map((s) => ({
+        entityName: s.name,
+        type: 'Supplier',
+        phone: s.phone,
+        totalBilled: s.totalPurchased,
+        totalReceived: s.totalPaid,
+        balanceDue: s.balanceDue,
+        status: s.balanceDue > 0 ? `₹${s.balanceDue} due to supplier` : 'Cleared',
+      })),
+    ];
+
+    return { sales, purchases, expenses, outstanding };
+  }
+
+  // Default fallback dataset
   const sales = [
     {
       invoiceNumber: 'INV-2026-001',
@@ -84,20 +168,6 @@ export function getOperationalData(_businessId: string, _dateFrom?: string, _dat
       status: 'draft',
       notes: 'Under review in BillReview',
     },
-    {
-      invoiceNumber: 'INV-2026-004',
-      date: '2026-10-31',
-      customerName: 'Agarwal Sweet House',
-      customerGstin: '07BBBBB1111B2Z4',
-      supplyType: 'B2B',
-      taxableValue: 5600.0,
-      cgst: 140.0,
-      sgst: 140.0,
-      igst: 0.0,
-      totalAmount: 5880.0,
-      status: 'confirmed',
-      notes: 'Bulk dairy supply - Net 15 days',
-    },
   ];
 
   const purchases = [
@@ -114,79 +184,20 @@ export function getOperationalData(_businessId: string, _dateFrom?: string, _dat
       status: 'confirmed',
       itcEligible: true,
     },
-    {
-      billNumber: 'PUR-OCT-9902',
-      date: '2026-10-26',
-      supplierName: 'Punjab Traders Mandi',
-      supplierGstin: '03DDDD7777D4Z1',
-      taxableValue: 12400.0,
-      cgst: 0.0,
-      sgst: 0.0,
-      igst: 620.0,
-      totalAmount: 13020.0,
-      status: 'confirmed',
-      itcEligible: true,
-    },
-    {
-      billNumber: 'PUR-OCT-9903',
-      date: '2026-10-30',
-      supplierName: 'Sharma Dairy & Provisions',
-      supplierGstin: '', // Missing GSTIN
-      taxableValue: 2400.0,
-      cgst: 60.0,
-      sgst: 60.0,
-      igst: 0.0,
-      totalAmount: 2520.0,
-      status: 'confirmed',
-      itcEligible: false, // Unregistered dealer
-    },
   ];
 
   const expenses = [
     {
       date: '2026-10-01',
       category: 'Shop Rent',
-      description: 'Monthly commercial shop rental for Sector 14 Kirana Store',
+      description: 'Monthly commercial shop rental',
       amount: 18000.0,
       paymentMode: 'Net Banking (NEFT)',
       voucherNo: 'V-RENT-10',
     },
-    {
-      date: '2026-10-10',
-      category: 'Electricity & Utilities',
-      description: 'State Power Corporation commercial electricity bill',
-      amount: 3450.0,
-      paymentMode: 'UPI',
-      voucherNo: 'V-ELEC-10',
-    },
-    {
-      date: '2026-10-15',
-      category: 'Logistics & Mandi Freight',
-      description: 'Auto tempo freight charges for Mandi grain delivery',
-      amount: 1200.0,
-      paymentMode: 'Cash',
-      voucherNo: 'V-LOG-15',
-    },
-    {
-      date: '2026-10-28',
-      category: 'Packaging Materials',
-      description: 'Paper bags, poly rolls, packaging tape',
-      amount: 950.0,
-      paymentMode: 'Cash',
-      voucherNo: 'V-PKG-28',
-    },
   ];
 
   const outstanding = [
-    {
-      entityName: 'Agarwal Sweet House',
-      type: 'Customer',
-      phone: '+91 98111 22334',
-      totalBilled: 12500.0,
-      totalReceived: 6620.0,
-      balanceDue: 5880.0,
-      status: 'Due in 7 days',
-    },
     {
       entityName: 'Ramesh Kumar',
       type: 'Customer',
@@ -195,15 +206,6 @@ export function getOperationalData(_businessId: string, _dateFrom?: string, _dat
       totalReceived: 1450.0,
       balanceDue: 0.0,
       status: 'Settled',
-    },
-    {
-      entityName: 'Kirana Wholesale Hub',
-      type: 'Supplier',
-      phone: '+91 98765 11223',
-      totalBilled: 8925.0,
-      totalPaid: 5000.0,
-      balanceDue: 3925.0,
-      status: 'Payment pending',
     },
   ];
 
@@ -301,13 +303,23 @@ export function buildCaExcelWorkbook(businessId: string, businessName: string, d
   const { sales, purchases, expenses, outstanding } = getOperationalData(businessId, dateFrom, dateTo);
   const wb = XLSX.utils.book_new();
 
+  const isDemo = businessId === DEMO_BUSINESS_ID || !businessId || businessName.toLowerCase().includes('demo');
+
   // 1. Disclaimer & Reconciliation Worksheet
   const metaRows = [
     ['BAHIVERSE AI — CHARTERED ACCOUNTANT PREPARATION DOSSIER'],
+    ['DATA CLASSIFICATION:', isDemo ? 'DEMO DATA — NOT FOR STATUTORY FILING' : 'OFFICIAL OPERATIONAL DATA'],
     ['Business Name:', businessName],
     ['Export Period:', `${dateFrom || 'Current Month'} to ${dateTo || 'Current Date'}`],
     ['Generated On:', new Date().toISOString()],
     [],
+    ...(isDemo
+      ? [
+          ['DEMO DATA NOTICE:'],
+          ['DEMO DATA — NOT FOR STATUTORY FILING. Generated by BahiVerse Demo Store for workflow testing.'],
+          [],
+        ]
+      : []),
     ['LEGAL COMPLIANCE DISCLAIMER:'],
     [CA_COMPLIANCE_DISCLAIMER],
     [],
@@ -446,9 +458,11 @@ export function buildCaExcelWorkbook(businessId: string, businessName: string, d
  * Builds CSV content for specific registers.
  */
 export function buildCaCsv(businessId: string, registerType: 'sales' | 'purchases' | 'expenses'): string {
+  const isDemo = businessId === DEMO_BUSINESS_ID || !businessId;
+  const demoPrefix = isDemo ? '# DEMO DATA — NOT FOR STATUTORY FILING\n' : '';
   const { sales, purchases, expenses } = getOperationalData(businessId);
   if (registerType === 'sales') {
-    const header = 'Invoice Number,Date,Customer Name,Customer GSTIN,Supply Type,Taxable Value,CGST,SGST,IGST,Total Amount,Status\n';
+    const header = demoPrefix + 'Invoice Number,Date,Customer Name,Customer GSTIN,Supply Type,Taxable Value,CGST,SGST,IGST,Total Amount,Status\n';
     const lines = sales
       .map(
         (s) =>

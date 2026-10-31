@@ -250,3 +250,16 @@ export const aiApi = {
   },
 };
 
+// ── Demo Mode ───────────────────────────────────────────────────────────────
+export const demoApi = {
+  status: () => apiFetch<{ success: boolean; data: any }>('/api/demo/status'),
+  reset: () => apiFetch<{ success: boolean; message: string; data: any }>('/api/demo/reset', { method: 'POST' }),
+  products: () => apiFetch<{ success: boolean; data: any[] }>('/api/demo/products'),
+  bills: () => apiFetch<{ success: boolean; data: any[] }>('/api/demo/bills'),
+  analytics: () => apiFetch<{ success: boolean; data: any }>('/api/demo/analytics'),
+  updatePrice: (productId: string, newPrice: number) =>
+    apiFetch<{ success: boolean; message: string; data: any }>('/api/demo/price-update', {
+      method: 'POST',
+      body: JSON.stringify({ productId, newPrice }),
+    }),
+};

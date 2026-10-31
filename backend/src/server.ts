@@ -22,6 +22,7 @@ import { aiRouter } from './routes/aiRoutes.js';
 import { documentRouter } from './routes/documentRoutes.js';
 import { integrationRouter } from './routes/integrationRoutes.js';
 import { caExportRouter } from './routes/caExportRoutes.js';
+import { demoRouter } from './routes/demoRoutes.js';
 
 export function createServer(): Express {
   const app = express();
@@ -81,6 +82,7 @@ export function createServer(): Express {
   app.use('/api/documents', generalLimiter, documentRouter);
   app.use('/api/integrations', generalLimiter, integrationRouter);
   app.use('/api/exports/ca', generalLimiter, caExportRouter);
+  app.use('/api/demo', generalLimiter, demoRouter);
 
   // Centralized Error Handler
   app.use(errorHandler);

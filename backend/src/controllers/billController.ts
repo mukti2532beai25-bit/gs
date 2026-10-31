@@ -372,8 +372,8 @@ export async function captureBill(req: AuthenticatedRequest, res: Response, next
         success: true,
         data: newBill,
         meta: {
-          isDemo: true,
-          provider: 'demo-local',
+          isDemo: extraction.isDemo ?? true,
+          provider: extraction.provider || 'demo-fixture',
         },
       });
     }
