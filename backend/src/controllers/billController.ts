@@ -225,13 +225,35 @@ export async function updateBillReview(req: AuthenticatedRequest, res: Response,
       return;
     }
 
-    const { items, ...headerFields } = input;
+    const { items, customerName, customerPhone, newVocabTerms, ...headerFields } = input;
+
+    let customerId = existingBill.customerId;
+    if (customerName) {
+      const customer = await prisma.customer.findFirst({
+        where: { businessId, name: customerName },
+      });
+      if (customer) {
+        customerId = customer.id;
+        if (customerPhone && customer.phone !== customerPhone) {
+          await prisma.customer.update({ where: { id: customer.id }, data: { phone: customerPhone } });
+        }
+      } else {
+        const newCust = await prisma.customer.create({
+          data: { businessId, name: customerName, phone: customerPhone || null },
+        });
+        customerId = newCust.id;
+      }
+    }
 
     const updated = await prisma.bill.update({
       where: { id },
       data: {
         ...headerFields,
+        customerId,
         status: 'reviewed',
+      },
+      include: {
+        customer: true,
       },
     });
 
@@ -254,14 +276,39 @@ export async function updateBillReview(req: AuthenticatedRequest, res: Response,
       }
     }
 
-    // Log correction record
+    // Save new vocabulary mappings if approved during review
+    if (newVocabTerms && newVocabTerms.length > 0) {
+      for (const vocab of newVocabTerms) {
+        await prisma.vocabularyMapping.upsert({
+          where: {
+            businessId_rawTerm: {
+              businessId,
+              rawTerm: vocab.rawTerm,
+            },
+          },
+          update: {
+            normalizedTerm: vocab.normalizedTerm,
+            category: vocab.category,
+          },
+          create: {
+            businessId,
+            rawTerm: vocab.rawTerm,
+            normalizedTerm: vocab.normalizedTerm,
+            category: vocab.category,
+            language: existingBill.language,
+          },
+        });
+      }
+    }
+
+    // Log correction record in audit trail
     await prisma.correction.create({
       data: {
         billId: id,
         userId: req.user!.userId,
-        fieldName: 'line_items_review',
-        originalValue: 'extracted',
-        correctedValue: 'reviewed',
+        fieldName: 'bill_review_correction',
+        originalValue: `Status: ${existingBill.status}, Total: ${existingBill.totalAmount}`,
+        correctedValue: `Status: reviewed, Total: ${updated.totalAmount}, Items: ${items?.length ?? 0}`,
         source: 'manual',
       },
     });
