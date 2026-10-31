@@ -104,15 +104,27 @@ export const businessApi = {
 
 // ── Vocabulary ────────────────────────────────────────────────────────────────
 export const vocabApi = {
-  list: (params?: { category?: string; language?: string; search?: string }) => {
+  list: async (params?: { category?: string; language?: string; search?: string }) => {
     const q = new URLSearchParams();
     if (params?.category) q.set('category', params.category);
     if (params?.language) q.set('language', params.language);
     if (params?.search) q.set('search', params.search);
-    return apiFetch<any[]>(`/api/vocab?${q}`);
+    const res = await apiFetch<any>(`/api/vocab?${q}`);
+    return Array.isArray(res) ? res : res.data || [];
   },
   create: (data: any) => apiFetch<any>('/api/vocab', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => apiFetch<any>(`/api/vocab/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  setStatus: (id: string, status: string) =>
+    apiFetch<any>(`/api/vocab/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   delete: (id: string) => apiFetch<any>(`/api/vocab/${id}`, { method: 'DELETE' }),
+};
+
+// ── Normalization & Schema ────────────────────────────────────────────────────
+export const normalizationApi = {
+  schema: () => apiFetch<{ success: boolean; data: any }>('/api/normalization/schema'),
+  health: () => apiFetch<{ success: boolean; data: any }>('/api/normalization/health'),
+  reviewDependency: (id: string, status: 'confirmed' | 'rejected' | 'hypothesis') =>
+    apiFetch<any>('/api/normalization/dependencies/review', { method: 'POST', body: JSON.stringify({ id, status }) }),
 };
 
 // ── Export ────────────────────────────────────────────────────────────────────

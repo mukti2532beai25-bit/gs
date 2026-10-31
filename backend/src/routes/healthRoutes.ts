@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { processVoiceCommand, applyVoiceCommand, getVoiceHistory } from '../controllers/voiceController.js';
-import { getNormalizationHealth } from '../controllers/normalizationController.js';
+import { getNormalizationHealth, getNormalizationSchema, reviewDependency } from '../controllers/normalizationController.js';
 import { generateExport, getExportHistory } from '../controllers/exportController.js';
 import { checkDatabaseConnection } from '../config/database.js';
 import { authenticate, requireBusiness } from '../middleware/auth.js';
@@ -17,6 +17,8 @@ voiceRouter.get('/history', getVoiceHistory);
 export const normalizationRouter = Router();
 normalizationRouter.use(authenticate, requireBusiness);
 normalizationRouter.get('/health', getNormalizationHealth);
+normalizationRouter.get('/schema', getNormalizationSchema);
+normalizationRouter.post('/dependencies/review', reviewDependency);
 
 // Export router
 export const exportRouter = Router();
