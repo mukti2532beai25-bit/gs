@@ -134,10 +134,30 @@ export async function captureBill(req: AuthenticatedRequest, res: Response, next
       targetLang
     );
 
+    let customerId: string | null = null;
+    if (extraction.customerName) {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: { businessId, name: extraction.customerName },
+      });
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        const newCustomer = await prisma.customer.create({
+          data: {
+            businessId,
+            name: extraction.customerName,
+            phone: extraction.customerPhone || null,
+          },
+        });
+        customerId = newCustomer.id;
+      }
+    }
+
     const bill = await prisma.bill.create({
       data: {
         businessId,
         userId,
+        customerId,
         imageUrl: file ? `/uploads/${file.filename}` : null,
         captureMode: file ? 'upload' : 'manual',
         language: targetLang,
