@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "test": "tsx tests/health.test.ts",
+    "test": "tsx tests/integration.test.ts",
+    "test:health": "tsx tests/health.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

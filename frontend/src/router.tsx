@@ -43,8 +43,10 @@ export default function AppRouter() {
           <Route path="review/:id" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="review" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="whisperflow" element={<PrivateRoute><WhisperFlow /></PrivateRoute>} />
+          <Route path="whisper" element={<Navigate to="/whisperflow" replace />} />
           <Route path="database" element={<PrivateRoute><DatabaseArchitect /></PrivateRoute>} />
           <Route path="export" element={<PrivateRoute><ExportCenter /></PrivateRoute>} />
+          <Route path="login" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>
