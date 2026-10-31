@@ -228,6 +228,102 @@ async function runIntegrationTests() {
       if (!Array.isArray(json.data.topProducts)) throw new Error('Missing topProducts array');
     });
 
+    // 11. Camera Image Capture & Upload OCR Pipeline
+    await test('Camera Bill Capture — JPEG Blob Upload, OCR Extraction & Draft Status', async () => {
+      const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+      // Create a dummy multipart form data simulating a captured camera JPEG blob
+      const rawPayload =
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="language"\r\n\r\n` +
+        `hi\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="image"; filename="camera-bill-${Date.now()}.jpg"\r\n` +
+        `Content-Type: image/jpeg\r\n\r\n` +
+        `fake-jpeg-camera-binary-stream-data\r\n` +
+        `--${boundary}--\r\n`;
+
+      const res = await fetch(`http://localhost:${PORT}/api/bills/capture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: rawPayload,
+      });
+
+      if (res.status !== 201) throw new Error(`Camera capture upload failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error('Capture endpoint returned unsuccessful');
+      if (!json.data.id) throw new Error('Bill ID not generated');
+      // Invariant: Status must be extracted / unconfirmed, requiring human review
+      if (json.data.status !== 'extracted' && json.data.status !== 'pending') {
+        throw new Error(`Bill must not be auto-confirmed; got status: ${json.data.status}`);
+      }
+      if (!json.data.vendorName) throw new Error('Missing extracted vendor name');
+      if (!Array.isArray(json.data.items) || json.data.items.length === 0) {
+        throw new Error('Missing extracted line items');
+      }
+      if (Number(json.data.totalAmount) <= 0) throw new Error('Total amount must be positive');
+    });
+
+    // 12. WhisperFlow Voice Assistant — Accounting Query via Speech Parse
+    await test('WhisperFlow Voice Assistant — Accounting Speech Query Resolution', async () => {
+      const res = await fetch(`http://localhost:${PORT}/api/voice/parse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          transcript: 'How much did I sell today?',
+          language: 'en',
+        }),
+      });
+
+      if (res.status !== 200) throw new Error(`Voice query failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error('Voice query returned unsuccessful');
+      if (json.data.action !== 'analytics_query') {
+        throw new Error(`Expected action analytics_query, got ${json.data.action}`);
+      }
+      if (!json.data.requestedChange) throw new Error('Missing assistant answer');
+    });
+
+    // 13. WhisperFlow Multi-lingual Voice Ingestion (Hindi & Punjabi)
+    await test('WhisperFlow Voice Multi-lingual Speech Processing (Hindi & Punjabi)', async () => {
+      // Hindi test
+      const resHi = await fetch(`http://localhost:${PORT}/api/voice/parse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          transcript: 'मेरी कुल कमाई कितनी है',
+          language: 'hi',
+        }),
+      });
+      const jsonHi = await resHi.json();
+      if (!jsonHi.success) throw new Error('Hindi voice parse failed');
+
+      // Punjabi test
+      const resPa = await fetch(`http://localhost:${PORT}/api/voice/parse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          transcript: 'ਦੁੱਧ ਦੀ ਮਾਤਰਾ 5 ਕਰੋ',
+          language: 'pa',
+        }),
+      });
+      const jsonPa = await resPa.json();
+      if (!jsonPa.success) throw new Error('Punjabi voice parse failed');
+      if (jsonPa.data.quantity !== 5) throw new Error(`Expected quantity 5, got ${jsonPa.data.quantity}`);
+    });
+
+
 
     console.log('\n======================================================');
     console.log(`🎉 Results: ${passed} Passed, ${failed} Failed`);

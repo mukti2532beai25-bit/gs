@@ -8,6 +8,17 @@ if (!fs.existsSync(uploadDirectory)) {
   fs.mkdirSync(uploadDirectory, { recursive: true });
 }
 
+const MIME_EXTENSION_MAP: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'application/pdf': '.pdf',
+};
+
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.pdf'];
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadDirectory);
@@ -15,7 +26,13 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 9);
-    const ext = path.extname(file.originalname).toLowerCase();
+    let ext = path.extname(file.originalname).toLowerCase();
+    
+    // Fallback to extension inferred from mimetype if original name lacks extension (e.g. camera blob)
+    if (!ext || ext === '') {
+      ext = MIME_EXTENSION_MAP[file.mimetype] || '.jpg';
+    }
+
     cb(null, `bill-${timestamp}-${randomSuffix}${ext}`);
   },
 });
@@ -26,12 +43,15 @@ export const uploadBillImage = multer({
     fileSize: env.MAX_FILE_SIZE_MB * 1024 * 1024,
   },
   fileFilter: (_req, file, cb) => {
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.pdf'];
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedExtensions.includes(ext)) {
+    const hasAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
+    const hasAllowedMime = !!MIME_EXTENSION_MAP[file.mimetype];
+
+    // Accept if valid extension OR valid image/pdf mimetype
+    if (hasAllowedExt || hasAllowedMime) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type. Allowed formats: ${allowedExtensions.join(', ')}`));
+      cb(new Error(`Invalid file type. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`));
     }
   },
 });

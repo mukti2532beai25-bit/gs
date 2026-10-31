@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
 import { billsApi } from '../services/api';
 import ScanningPortal3D, { ScanState } from '../three/ScanningPortal3D';
+import CameraScannerModal from '../components/common/CameraScannerModal';
+
 import {
   Upload,
   Camera,
@@ -33,6 +35,7 @@ export default function CaptureBill() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPdf, setIsPdf] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [language, setLanguage] = useState<'en' | 'hi' | 'pa'>('hi');
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,14 +52,18 @@ export default function CaptureBill() {
       return false;
     }
 
-    // Extension check
+    // Extension or mimetype check
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+    const isImageMime = file.type.startsWith('image/');
+    const isPdfMime = file.type === 'application/pdf';
+
+    if (!isImageMime && !isPdfMime && (!ext || !ALLOWED_EXTENSIONS.includes(ext))) {
       const err = `Unsupported format (.${ext || 'unknown'}). Supported: ${ALLOWED_EXTENSIONS.join(', ')}`;
       setErrorMessage(err);
       addToast({ type: 'error', message: err });
       return false;
     }
+
 
     // Size check
     const sizeMb = file.size / (1024 * 1024);
@@ -354,6 +361,23 @@ export default function CaptureBill() {
                   <div className="text-xs text-slate-400 font-mono mt-0.5">
                     {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for neural extraction
                   </div>
+                  <div className="flex items-center justify-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraModalOpen(true)}
+                      className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Retake with Camera</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="btn-ghost py-1.5 px-3 text-xs text-slate-400 hover:text-white"
+                    >
+                      <span>Choose Different File</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -365,7 +389,7 @@ export default function CaptureBill() {
 
                 <div>
                   <p className="text-sm font-semibold text-slate-200">
-                    Drag and drop bill receipt here, or select an option
+                    Capture with live camera or drag and drop bill receipt
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
                     Supports JPG, PNG, WEBP, HEIC, or PDF up to 10MB
@@ -375,25 +399,26 @@ export default function CaptureBill() {
                 <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="btn-secondary py-2 px-4 text-xs font-semibold"
+                    onClick={() => setIsCameraModalOpen(true)}
+                    className="btn-primary py-2.5 px-5 text-xs font-bold shadow-glow-emerald"
                   >
-                    <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Browse Files</span>
+                    <Camera className="w-4 h-4 text-slate-950" />
+                    <span className="text-slate-950">Open Camera Scanner</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="btn-secondary py-2 px-4 text-xs font-semibold"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary py-2.5 px-4 text-xs font-semibold"
                   >
-                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Camera Capture</span>
+                    <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Browse Files</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+
 
           {/* Error Message Alert */}
           {errorMessage && (
@@ -454,6 +479,20 @@ export default function CaptureBill() {
           </div>
         </div>
       </div>
+
+      {/* 3D WebRTC Live Camera Scanner Modal */}
+      <CameraScannerModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={(file) => {
+          validateAndSetFile(file);
+          addToast({
+            type: 'success',
+            message: 'Receipt photo captured! Ready for 3D neural scan.',
+          });
+        }}
+      />
     </div>
   );
 }
+

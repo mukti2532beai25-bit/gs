@@ -3,12 +3,39 @@ import { prisma } from '../config/database.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import { voiceCommandSchema } from '../validators/vocabValidators.js';
 import { parseVoiceInput, ParsedVoiceAction } from '../services/ai/voiceParsingService.js';
+import { processNaturalLanguageQuery } from '../services/ai/aiQueryService.js';
 import { z } from 'zod';
 
 export async function processVoiceCommand(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = voiceCommandSchema.parse(req.body);
     const parsedAction = parseVoiceInput(input.transcript, input.language);
+
+    // If bill-item parser didn't match a line-item edit, check if it's an accounting query or catalog update
+    if (parsedAction.action === 'ambiguous' && req.user?.businessId) {
+      const nlResult = await processNaturalLanguageQuery(
+        req.user.businessId,
+        input.transcript,
+        input.language
+      );
+      if (nlResult && nlResult.type !== 'security_violation') {
+        res.json({
+          success: true,
+          data: {
+            action: nlResult.type === 'action_proposal' ? 'catalog_update' : 'analytics_query',
+            targetField: 'business_query',
+            requestedChange: nlResult.answer,
+            confidence: 0.95,
+            requiresConfirmation: nlResult.type === 'action_proposal',
+            isAmbiguous: false,
+            rawTranscript: input.transcript,
+            language: input.language,
+            analyticsResult: nlResult,
+          },
+        });
+        return;
+      }
+    }
 
     res.json({
       success: true,
@@ -18,6 +45,7 @@ export async function processVoiceCommand(req: AuthenticatedRequest, res: Respon
     next(error);
   }
 }
+
 
 const applyVoiceSchema = z.object({
   billId: z.string().uuid(),

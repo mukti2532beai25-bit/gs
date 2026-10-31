@@ -30,10 +30,10 @@ export interface ParsedVoiceAction {
 export function parseVoiceInput(transcript: string, language: string = 'hi'): ParsedVoiceAction {
   const clean = transcript.toLowerCase().trim();
 
-  // 1. Correct Quantity: "Correct the quantity of [product] to [number]" / "[product] ki quantity [number] karo" / "मात्रा [number] करो"
+  // 1. Correct Quantity: "Correct the quantity of [product] to [number]" / "[product] ki quantity [number] karo" / "मात्रा [number] करो" / "ਦੁੱਧ ਦੀ ਮਾਤਰਾ 5 ਕਰੋ"
   const qtyMatch = clean.match(
-    /(?:correct\s+(?:the\s+)?quantity\s+of|change\s+quantity\s+of|quantity\s+of|मात्रा|gintee)\s+(.+?)\s+(?:to|ko|karo|hai)?\s*(\d+(?:\.\d+)?)/i
-  ) || clean.match(/(.+?)\s+(?:ki\s+)?(?:quantity|मात्रा)\s*(\d+(?:\.\d+)?)\s*(?:karo|kar do)?/i);
+    /(?:correct\s+(?:the\s+)?quantity\s+of|change\s+quantity\s+of|quantity\s+of|मात्रा|ਮਾਤਰਾ|gintee|ਗਿਣਤੀ)\s+(.+?)\s+(?:to|ko|karo|hai|nu|karo|ਕਰੋ)?\s*(\d+(?:\.\d+)?)/i
+  ) || clean.match(/(.+?)\s+(?:ki|di|ka|ਦੀ|की|का)?\s*(?:quantity|मात्रा|ਮਾਤਰਾ|gintee|ਗਿਣਤੀ)\s*(\d+(?:\.\d+)?)\s*(?:karo|kar do|kar de|ਕਰੋ|ਕਰ ਦਿਓ)?/i);
 
   if (qtyMatch) {
     const prod = qtyMatch[1].replace(/^(the|item|product)\s+/i, '').trim();
@@ -52,10 +52,11 @@ export function parseVoiceInput(transcript: string, language: string = 'hi'): Pa
     };
   }
 
-  // 2. Change Price: "Change the price of [product] to [number]" / "भाव [number] करो" / "rate [number]"
+  // 2. Change Price: "Change the price of [product] to [number]" / "भाव [number] करो" / "rate [number]" / "ਰੇਟ [number] ਕਰੋ"
   const priceMatch = clean.match(
-    /(?:change\s+(?:the\s+)?price\s+of|correct\s+price\s+of|price\s+of|rate\s+of|bhaav|keemat)\s+(.+?)\s+(?:to|ko|karo|hai)?\s*(?:rs|₹|rupees)?\s*(\d+(?:\.\d+)?)/i
-  ) || clean.match(/(.+?)\s+(?:ka\s+)?(?:price|rate|bhaav|भाव)\s*(?:rs|₹)?\s*(\d+(?:\.\d+)?)\s*(?:karo|kar do)?/i);
+    /(?:change\s+(?:the\s+)?price\s+of|correct\s+price\s+of|price\s+of|rate\s+of|bhaav|keemat|ਕੀਮਤ|ਰੇਟ|ਭਾਅ)\s+(.+?)\s+(?:to|ko|karo|hai|karo|ਕਰੋ)?\s*(?:rs|₹|rupees|रुपये)?\s*(\d+(?:\.\d+)?)/i
+  ) || clean.match(/(.+?)\s+(?:ka|ki|di|ਦੀ|का|की)?\s*(?:price|rate|bhaav|भाव|ਕੀਮਤ|keemat|ਭਾਅ|ਰੇਟ)\s*(?:rs|₹|रुपये)?\s*(\d+(?:\.\d+)?)\s*(?:karo|kar do|ਕਰੋ|ਕਰ ਦਿਓ)?/i);
+
 
   if (priceMatch) {
     const prod = priceMatch[1].replace(/^(the|item|product)\s+/i, '').trim();
