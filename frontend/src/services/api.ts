@@ -129,7 +129,24 @@ export const normalizationApi = {
 
 // ── Export ────────────────────────────────────────────────────────────────────
 export const exportApi = {
-  generate: async (data: { format: string; billIds?: string[]; allApproved?: boolean; dateFrom?: string; dateTo?: string }) => {
+  preview: (data: {
+    format: string;
+    entity?: string;
+    status?: string;
+    customerId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => apiFetch<{ success: boolean; data: any }>('/api/export/preview', { method: 'POST', body: JSON.stringify(data) }),
+  generate: async (data: {
+    format: string;
+    entity?: string;
+    status?: string;
+    customerId?: string;
+    billIds?: string[];
+    allApproved?: boolean;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
     const token = getToken();
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -144,7 +161,10 @@ export const exportApi = {
     const fileName = res.headers.get('Content-Disposition')?.split('filename="')[1]?.replace('"', '') || 'export';
     return { blob, fileName };
   },
-  history: () => apiFetch<any[]>('/api/export/history'),
+  history: async () => {
+    const res = await apiFetch<any>('/api/export/history');
+    return Array.isArray(res) ? res : res.data || [];
+  },
 };
 
 // ── Voice & WhisperFlow ───────────────────────────────────────────────────────

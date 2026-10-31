@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { processVoiceCommand, applyVoiceCommand, getVoiceHistory } from '../controllers/voiceController.js';
 import { getNormalizationHealth, getNormalizationSchema, reviewDependency } from '../controllers/normalizationController.js';
-import { generateExport, getExportHistory } from '../controllers/exportController.js';
+import { generateExport, previewExport, getExportHistory } from '../controllers/exportController.js';
 import { checkDatabaseConnection } from '../config/database.js';
 import { authenticate, requireBusiness } from '../middleware/auth.js';
 
@@ -24,6 +24,7 @@ normalizationRouter.post('/dependencies/review', reviewDependency);
 export const exportRouter = Router();
 exportRouter.use(authenticate, requireBusiness);
 exportRouter.post('/', generateExport);
+exportRouter.post('/preview', previewExport);
 exportRouter.get('/history', getExportHistory);
 
 // Health router

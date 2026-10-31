@@ -14,9 +14,13 @@ export const voiceCommandSchema = z.object({
 });
 
 export const exportRequestSchema = z.object({
-  format: z.enum(['csv', 'json', 'tally-xml']),
+  format: z.enum(['csv', 'json', 'tally-xml']).default('csv'),
+  entity: z.enum(['bills', 'customers', 'products', 'items', 'vocabulary']).default('bills'),
   billIds: z.array(z.string().uuid()).optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
-  allApproved: z.boolean().default(true),
+  status: z.string().optional(),
+  customerId: z.string().optional(),
+  allApproved: z.boolean().default(false),
+  preview: z.boolean().optional(),
 });
