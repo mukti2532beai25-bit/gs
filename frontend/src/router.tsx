@@ -13,6 +13,9 @@ const WhisperFlow = lazy(() => import('./pages/WhisperFlow'));
 const DatabaseArchitect = lazy(() => import('./pages/DatabaseArchitect'));
 const ExportCenter = lazy(() => import('./pages/ExportCenter'));
 const AskYourBusiness = lazy(() => import('./pages/AskYourBusiness'));
+const DocumentInbox = lazy(() => import('./pages/DocumentInbox'));
+const BatchScanner = lazy(() => import('./pages/BatchScanner'));
+const CaComplianceHub = lazy(() => import('./pages/CaComplianceHub'));
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -42,13 +45,16 @@ export default function AppRouter() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="ask" element={<PrivateRoute><AskYourBusiness /></PrivateRoute>} />
+          <Route path="inbox" element={<PrivateRoute><DocumentInbox /></PrivateRoute>} />
           <Route path="capture" element={<PrivateRoute><CaptureBill /></PrivateRoute>} />
+          <Route path="capture/batch" element={<PrivateRoute><BatchScanner /></PrivateRoute>} />
 
           <Route path="review/:id" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="review" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="whisperflow" element={<PrivateRoute><WhisperFlow /></PrivateRoute>} />
           <Route path="whisper" element={<Navigate to="/whisperflow" replace />} />
           <Route path="database" element={<PrivateRoute><DatabaseArchitect /></PrivateRoute>} />
+          <Route path="ca-reports" element={<PrivateRoute><CaComplianceHub /></PrivateRoute>} />
           <Route path="export" element={<PrivateRoute><ExportCenter /></PrivateRoute>} />
           <Route path="login" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

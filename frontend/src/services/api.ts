@@ -59,6 +59,35 @@ async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   return res.json();
 }
 
+// ── Universal api wrapper ─────────────────────────────────────────────────────
+export const api = {
+  get: async <T = any>(path: string) => {
+    const data = await apiFetch<T>(path, { method: 'GET' });
+    return { data };
+  },
+  post: async <T = any>(path: string, body?: any, config?: { headers?: any; responseType?: string }) => {
+    if (body instanceof FormData) {
+      const data = await apiUpload<T>(path, body);
+      return { data };
+    }
+    const headers = config?.responseType === 'blob' ? { Accept: 'blob' } : config?.headers || {};
+    const data = await apiFetch<T>(path, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+      headers,
+    });
+    return { data };
+  },
+  patch: async <T = any>(path: string, body?: any) => {
+    const data = await apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+    return { data };
+  },
+  delete: async <T = any>(path: string) => {
+    const data = await apiFetch<T>(path, { method: 'DELETE' });
+    return { data };
+  },
+};
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authApi = {
   signup: (data: { name: string; email: string; password: string; businessName?: string }) =>

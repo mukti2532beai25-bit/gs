@@ -323,8 +323,178 @@ async function runIntegrationTests() {
       if (jsonPa.data.quantity !== 5) throw new Error(`Expected quantity 5, got ${jsonPa.data.quantity}`);
     });
 
+    // 14. Centralized Document Inbox & Status Filtering
+    await test('Centralized Document Inbox & Source Aggregation', async () => {
+      const res = await fetch(`http://localhost:${PORT}/api/documents`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error('Document list failed');
+      if (!Array.isArray(json.data) || json.data.length === 0) {
+        throw new Error('Expected inbox documents array');
+      }
+      if (!json.counts || typeof json.counts.all !== 'number') {
+        throw new Error('Expected status counts in inbox response');
+      }
+    });
 
+    // 15. Multi-Factor Document Duplicate Detection
+    await test('Multi-Factor Document Duplicate Detection (Exact SHA-256 Match)', async () => {
+      // Ingest a document with known content
+      const boundary = '----WebKitFormBoundaryDuplicateTest';
+      const fileContent = 'Simulated bill file content for duplicate test';
+      const body =
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="documents"; filename="Test_Bill_001.jpg"\r\n` +
+        `Content-Type: image/jpeg\r\n\r\n` +
+        `${fileContent}\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="sourceType"\r\n\r\n` +
+        `camera_batch\r\n` +
+        `--${boundary}--\r\n`;
 
+      // Upload first time
+      const res1 = await fetch(`http://localhost:${PORT}/api/documents/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          Authorization: `Bearer ${authToken}`,
+        },
+        body,
+      });
+      if (res1.status !== 201) throw new Error(`First upload failed with status ${res1.status}`);
+      const json1 = await res1.json();
+      if (json1.data.documents[0].status === 'duplicate') {
+        throw new Error('First upload should not be marked duplicate');
+      }
+
+      // Upload second time with identical buffer
+      const res2 = await fetch(`http://localhost:${PORT}/api/documents/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          Authorization: `Bearer ${authToken}`,
+        },
+        body,
+      });
+      if (res2.status !== 201) throw new Error(`Second upload failed with status ${res2.status}`);
+      const json2 = await res2.json();
+      if (json2.data.duplicatesDetected < 1) {
+        throw new Error('Expected duplicate to be detected on identical upload');
+      }
+      if (json2.data.documents[0].status !== 'duplicate') {
+        throw new Error(`Expected document status 'duplicate', got ${json2.data.documents[0].status}`);
+      }
+    });
+
+    // 16. Connected Document Acquisition Sources & WhatsApp Webhook Handshake
+    await test('Connected Acquisition Sources & WhatsApp Webhook Handshake', async () => {
+      // Test 16a: List sources
+      const resSources = await fetch(`http://localhost:${PORT}/api/integrations/sources`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (resSources.status !== 200) throw new Error(`Sources listing failed with status ${resSources.status}`);
+      const jsonSources = await resSources.json();
+      if (!Array.isArray(jsonSources.data) || jsonSources.data.length < 3) {
+        throw new Error('Expected at least 3 connected sources (Gmail, WhatsApp, Email Mailbox)');
+      }
+
+      // Test 16b: WhatsApp Webhook Challenge Verification
+      const challengeToken = 'test_challenge_code_9988';
+      const resWebhookVerify = await fetch(
+        `http://localhost:${PORT}/api/integrations/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=bahiverse_webhook_secret_2026&hub.challenge=${challengeToken}`
+      );
+      if (resWebhookVerify.status !== 200) throw new Error(`Webhook verify failed with status ${resWebhookVerify.status}`);
+      const bodyText = await resWebhookVerify.text();
+      if (bodyText !== challengeToken) throw new Error(`Expected challenge response '${challengeToken}', got '${bodyText}'`);
+
+      // Test 16c: Manual sync trigger
+      const resSync = await fetch(`http://localhost:${PORT}/api/integrations/sources/whatsapp/sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (resSync.status !== 200) throw new Error(`Sync trigger failed with status ${resSync.status}`);
+      const jsonSync = await resSync.json();
+      if (jsonSync.data.status !== 'success') throw new Error(`Expected sync status 'success', got ${jsonSync.data.status}`);
+    });
+
+    // 17. CA Pre-Export Reconciliation & Audit Validation Engine
+    await test('CA Pre-Export Reconciliation & Statutory Boundary Audit', async () => {
+      const res = await fetch(`http://localhost:${PORT}/api/exports/ca/validate`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.status !== 200) throw new Error(`CA validation failed with status ${res.status}`);
+      const json = await res.json();
+      if (!json.success || !json.data) throw new Error('Invalid validation response structure');
+
+      const val = json.data;
+      if (typeof val.totalRecordsChecked !== 'number' || val.totalRecordsChecked === 0) {
+        throw new Error('Validation checked zero records');
+      }
+      if (!Array.isArray(val.issues) || val.issues.length === 0) {
+        throw new Error('Expected reconciliation issues/warnings to be flagged (e.g. unconfirmed drafts, missing supplier GSTIN)');
+      }
+      if (typeof val.summary.totalSales !== 'number' || typeof val.summary.eligibleItc !== 'number') {
+        throw new Error('Missing financial reconciliation summaries');
+      }
+    });
+
+    // 18. Multi-Worksheet CA Dossier Generation (.xlsx, .csv, and JSON)
+    await test('Multi-Worksheet CA Dossier Generation (Excel, CSV, and JSON)', async () => {
+      // 18a: Multi-sheet Excel workbook
+      const resXlsx = await fetch(`http://localhost:${PORT}/api/exports/ca/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ format: 'xlsx' }),
+      });
+      if (resXlsx.status !== 200) throw new Error(`Excel export failed with status ${resXlsx.status}`);
+      const contentType = resXlsx.headers.get('content-type') || '';
+      if (!contentType.includes('spreadsheetml')) {
+        throw new Error(`Expected spreadsheetml content type, got '${contentType}'`);
+      }
+      const xlsxBuffer = await resXlsx.arrayBuffer();
+      if (xlsxBuffer.byteLength < 1000) {
+        throw new Error(`Generated Excel workbook too small (${xlsxBuffer.byteLength} bytes)`);
+      }
+
+      // 18b: Standard CSV Sales Register
+      const resCsv = await fetch(`http://localhost:${PORT}/api/exports/ca/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ format: 'csv', registerType: 'sales' }),
+      });
+      if (resCsv.status !== 200) throw new Error(`CSV export failed with status ${resCsv.status}`);
+      const csvText = await resCsv.text();
+      if (!csvText.includes('Invoice Number') || !csvText.includes('Taxable Value')) {
+        throw new Error('Invalid CSV header generated');
+      }
+
+      // 18c: Structured JSON with Statutory Responsibility Matrix & Disclaimer
+      const resJson = await fetch(`http://localhost:${PORT}/api/exports/ca/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ format: 'json' }),
+      });
+      if (resJson.status !== 200) throw new Error(`JSON export failed with status ${resJson.status}`);
+      const jsonRes = await resJson.json();
+      const meta = jsonRes.data.exportMetadata;
+      if (!meta.disclaimer || !meta.disclaimer.toLowerCase().includes('chartered accountant')) {
+        throw new Error('Missing CA statutory disclaimer in export dossier');
+      }
+      if (!meta.boundaries || !meta.boundaries.charteredAccountant) {
+        throw new Error('Missing responsibility boundary matrix in export dossier');
+      }
+    });
     console.log('\n======================================================');
     console.log(`🎉 Results: ${passed} Passed, ${failed} Failed`);
     console.log('======================================================\n');

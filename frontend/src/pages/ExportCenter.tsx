@@ -22,8 +22,10 @@ import {
   RefreshCw,
   FolderDown,
   Layers,
+  Building2,
 } from 'lucide-react';
 import { downloadBlob, formatDate } from '../utils/formatters';
+import ExportForCaModal from '../components/export/ExportForCaModal';
 
 type ExportFormat = 'csv' | 'json';
 type ExportEntity = 'bills' | 'customers' | 'products' | 'items' | 'vocabulary';
@@ -44,6 +46,7 @@ export default function ExportCenter() {
   const [uiState, setUiState] = useState<UIExportState>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [lastDownloadedFile, setLastDownloadedFile] = useState<string>('');
+  const [showCaModal, setShowCaModal] = useState(false);
 
   // Preview state
   const [previewData, setPreviewData] = useState<{
@@ -178,18 +181,31 @@ export default function ExportCenter() {
   return (
     <div className="space-y-8 animate-fade-in max-w-6xl mx-auto">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-medium mb-2">
-          <FolderDown className="w-3.5 h-3.5 text-emerald-400" />
-          Module 07 — Multi-Format Export Center
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-medium mb-2">
+            <FolderDown className="w-3.5 h-3.5 text-emerald-400" />
+            Module 07 — Multi-Format Export Center
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
+            Export Digital Records & Accounting Data
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Export structured relational data as RFC-4180 compliant CSV spreadsheets or standard JSON datasets with strict tenant isolation.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-          Export Digital Records & Accounting Data
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Export structured relational data as RFC-4180 compliant CSV spreadsheets or standard JSON datasets with strict tenant isolation.
-        </p>
+
+        <button
+          type="button"
+          onClick={() => setShowCaModal(true)}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs flex items-center gap-2 shadow-glow-emerald hover:brightness-110 active:scale-95 transition-all shrink-0"
+        >
+          <Building2 className="w-4 h-4" />
+          One-Click Export for CA (.xlsx)
+        </button>
       </div>
+
+      <ExportForCaModal isOpen={showCaModal} onClose={() => setShowCaModal(false)} />
 
       {/* Main Grid: 3D Visualization + Configuration */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

@@ -31,8 +31,21 @@ import {
   Box,
   Eye,
   ExternalLink,
+  Mail,
+  MessageSquare,
+  Inbox,
+  RefreshCw,
+  Copy,
 } from 'lucide-react';
 import { VocabularyEntry } from '../types/bahiverse';
+import {
+  fetchConnectedSources,
+  triggerSourceSync,
+  getGmailConnectUrl,
+  completeGmailConnection,
+  disconnectSource,
+  IntegrationSource,
+} from '../services/integrationApi';
 
 export default function DatabaseArchitect() {
   const { user, refreshUser } = useAuth();
@@ -75,6 +88,51 @@ export default function DatabaseArchitect() {
   // Products and Customers lists
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [sources, setSources] = useState<IntegrationSource[]>([]);
+  const [isSyncingSource, setIsSyncingSource] = useState<Record<string, boolean>>({});
+  const [copiedEmail, setCopiedEmail] = useState(false);
+
+  const fetchSources = async () => {
+    try {
+      const res = await fetchConnectedSources();
+      if (res.success) setSources(res.data);
+    } catch (err) {
+      console.warn('Sources error:', err);
+    }
+  };
+
+  const handleSourceSync = async (type: string) => {
+    setIsSyncingSource((prev) => ({ ...prev, [type]: true }));
+    try {
+      await triggerSourceSync(type);
+      addToast({ type: 'success', message: `${type.toUpperCase()} sync completed successfully.` });
+      await fetchSources();
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Sync failed.' });
+    } finally {
+      setIsSyncingSource((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    try {
+      await completeGmailConnection('demo-code');
+      addToast({ type: 'success', message: 'Gmail OAuth 2.0 connected successfully!' });
+      await fetchSources();
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Gmail connection failed.' });
+    }
+  };
+
+  const handleDisconnect = async (type: string) => {
+    try {
+      await disconnectSource(type);
+      addToast({ type: 'info', message: `${type.toUpperCase()} disconnected.` });
+      await fetchSources();
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Disconnect failed.' });
+    }
+  };
 
   // Fetch full schema and normalization metadata
   const fetchSchemaData = useCallback(async () => {
@@ -120,6 +178,7 @@ export default function DatabaseArchitect() {
     fetchSchemaData();
     fetchVocab();
     fetchCatalog();
+    fetchSources();
   }, [fetchSchemaData]);
 
   // Determine active tables based on current normalization stage
@@ -951,6 +1010,101 @@ export default function DatabaseArchitect() {
                   <span>{isSavingBiz ? 'Saving Changes...' : 'Save Business Settings'}</span>
                 </button>
               </form>
+
+              {/* Connected Document Sources Card */}
+              <div className="glass-panel p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <Inbox className="w-4 h-4 text-cyan-400" />
+                    Connected Document Sources
+                  </h3>
+                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+                    Smart Ingestion
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {sources.map((src) => {
+                    const isSyncing = isSyncingSource[src.type];
+                    return (
+                      <div
+                        key={src.id}
+                        className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                src.type === 'gmail'
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : src.type === 'whatsapp'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-cyan-500/20 text-cyan-400'
+                              }`}
+                            >
+                              {src.type === 'gmail' ? (
+                                <Mail className="w-3.5 h-3.5" />
+                              ) : src.type === 'whatsapp' ? (
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              ) : (
+                                <Inbox className="w-3.5 h-3.5" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-white">{src.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">
+                                {src.type === 'email_inbox'
+                                  ? src.details?.forwardingAddress
+                                  : src.type === 'whatsapp'
+                                  ? src.details?.phoneNumber
+                                  : src.details?.email || 'OAuth 2.0 Integration'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              src.status === 'connected'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-slate-500/20 text-slate-400'
+                            }`}
+                          >
+                            {src.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
+                          {src.status === 'connected' ? (
+                            <>
+                              <button
+                                onClick={() => handleSourceSync(src.type)}
+                                disabled={isSyncing}
+                                className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                              >
+                                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                                Sync Now
+                              </button>
+                              <button
+                                onClick={() => handleDisconnect(src.type)}
+                                className="text-slate-500 hover:text-rose-400 transition-colors"
+                              >
+                                Disconnect
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={handleConnectGmail}
+                              className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                            >
+                              <Mail className="w-3 h-3" /> Connect Gmail
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Customers & Products Records Catalog */}

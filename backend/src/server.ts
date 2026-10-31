@@ -19,7 +19,9 @@ import {
   healthRouter,
 } from './routes/healthRoutes.js';
 import { aiRouter } from './routes/aiRoutes.js';
-
+import { documentRouter } from './routes/documentRoutes.js';
+import { integrationRouter } from './routes/integrationRoutes.js';
+import { caExportRouter } from './routes/caExportRoutes.js';
 
 export function createServer(): Express {
   const app = express();
@@ -76,6 +78,9 @@ export function createServer(): Express {
   app.use('/api/normalization', generalLimiter, normalizationRouter);
   app.use('/api/export', generalLimiter, exportRouter);
   app.use('/api/ai', generalLimiter, aiRouter);
+  app.use('/api/documents', generalLimiter, documentRouter);
+  app.use('/api/integrations', generalLimiter, integrationRouter);
+  app.use('/api/exports/ca', generalLimiter, caExportRouter);
 
   // Centralized Error Handler
   app.use(errorHandler);

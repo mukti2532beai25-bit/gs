@@ -11,6 +11,9 @@ import {
   Sparkles,
   ChevronRight,
   LogOut,
+  Inbox,
+  Layers,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -38,13 +41,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       badge: 'AI',
     },
     {
+      to: '/inbox',
+      label: 'Document Inbox',
+      subtitle: 'Centralized Inward Queue',
+      icon: Inbox,
+      badge: 'Smart',
+    },
+    {
       to: '/capture',
       label: 'Capture Bill',
       subtitle: '3D Laser Scanner',
       icon: Camera,
       badge: 'OCR',
     },
-
+    {
+      to: '/capture/batch',
+      label: 'Batch Scanner',
+      subtitle: 'Multi-Page & Camera Queue',
+      icon: Layers,
+      badge: 'Batch',
+    },
     {
       to: '/review',
       label: 'Bill Review',
@@ -63,6 +79,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       label: '3D Architect',
       subtitle: 'Relational Graph & Vocab',
       icon: Database,
+    },
+    {
+      to: '/ca-reports',
+      label: 'CA Compliance Hub',
+      subtitle: 'GSTR Preparation & Ledgers',
+      icon: Building2,
+      badge: 'CA Ready',
     },
     {
       to: '/export',
