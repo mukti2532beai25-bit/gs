@@ -94,6 +94,11 @@ export const billsApi = {
 export const businessApi = {
   get: () => apiFetch<any>('/api/business'),
   update: (data: any) => apiFetch<any>('/api/business', { method: 'PUT', body: JSON.stringify(data) }),
+  analytics: (params?: { range?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.range) q.set('range', params.range);
+    return apiFetch<{ success: boolean; data: any }>(`/api/business/analytics?${q}`);
+  },
   getCustomers: () => apiFetch<any[]>('/api/business/customers'),
   createCustomer: (data: any) =>
     apiFetch<any>('/api/business/customers', { method: 'POST', body: JSON.stringify(data) }),
@@ -101,6 +106,7 @@ export const businessApi = {
   createProduct: (data: any) =>
     apiFetch<any>('/api/business/products', { method: 'POST', body: JSON.stringify(data) }),
 };
+
 
 // ── Vocabulary ────────────────────────────────────────────────────────────────
 export const vocabApi = {
@@ -176,3 +182,42 @@ export const voiceApi = {
   history: () =>
     apiFetch<{ success: boolean; data: any[]; offlineNotice?: string }>('/api/voice/history'),
 };
+
+// ── Natural Language Business Intelligence & AI Assistant ────────────────────
+export const aiApi = {
+  query: (data: { question: string; language?: string }) =>
+    apiFetch<{
+      success: boolean;
+      type: 'analytics' | 'action_proposal' | 'security_violation' | 'unknown';
+      question: string;
+      language: string;
+      answer: string;
+      answer_hi?: string;
+      answer_pa?: string;
+      visualization?: any;
+      actionProposal?: any;
+      securityNotice?: string;
+      rawSqlEquivalent?: string;
+    }>('/api/ai/query', { method: 'POST', body: JSON.stringify(data) }),
+
+  confirmAction: (data: {
+    action: string;
+    productId: string;
+    newPrice?: number;
+    newName?: string;
+    newCategory?: string;
+  }) =>
+    apiFetch<{
+      success: boolean;
+      message: string;
+      updatedProduct?: any;
+      historicalAuditNotice?: string;
+    }>('/api/ai/action/confirm', { method: 'POST', body: JSON.stringify(data) }),
+
+  suggestions: (language?: string) => {
+    const q = new URLSearchParams();
+    if (language) q.set('language', language);
+    return apiFetch<{ success: boolean; data: any[]; language: string }>(`/api/ai/suggestions?${q}`);
+  },
+};
+

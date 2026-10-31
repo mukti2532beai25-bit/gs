@@ -18,6 +18,8 @@ import {
   exportRouter,
   healthRouter,
 } from './routes/healthRoutes.js';
+import { aiRouter } from './routes/aiRoutes.js';
+
 
 export function createServer(): Express {
   const app = express();
@@ -73,6 +75,7 @@ export function createServer(): Express {
   app.use('/api/voice', generalLimiter, voiceRouter);
   app.use('/api/normalization', generalLimiter, normalizationRouter);
   app.use('/api/export', generalLimiter, exportRouter);
+  app.use('/api/ai', generalLimiter, aiRouter);
 
   // Centralized Error Handler
   app.use(errorHandler);

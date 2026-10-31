@@ -26,17 +26,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       to: '/dashboard',
       label: 'Dashboard',
-      subtitle: '3D Ledger & Metrics',
+      subtitle: '3D Network & BI Health',
       icon: LayoutDashboard,
       badge: 'Live',
+    },
+    {
+      to: '/ask',
+      label: 'Ask Your Business',
+      subtitle: 'Natural Language Assistant',
+      icon: Sparkles,
+      badge: 'AI',
     },
     {
       to: '/capture',
       label: 'Capture Bill',
       subtitle: '3D Laser Scanner',
       icon: Camera,
-      badge: 'AI',
+      badge: 'OCR',
     },
+
     {
       to: '/review',
       label: 'Bill Review',

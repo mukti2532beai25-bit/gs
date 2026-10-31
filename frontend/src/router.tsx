@@ -12,6 +12,8 @@ const BillReview = lazy(() => import('./pages/BillReview'));
 const WhisperFlow = lazy(() => import('./pages/WhisperFlow'));
 const DatabaseArchitect = lazy(() => import('./pages/DatabaseArchitect'));
 const ExportCenter = lazy(() => import('./pages/ExportCenter'));
+const AskYourBusiness = lazy(() => import('./pages/AskYourBusiness'));
+
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,7 +41,9 @@ export default function AppRouter() {
         <Routes>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="ask" element={<PrivateRoute><AskYourBusiness /></PrivateRoute>} />
           <Route path="capture" element={<PrivateRoute><CaptureBill /></PrivateRoute>} />
+
           <Route path="review/:id" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="review" element={<PrivateRoute><BillReview /></PrivateRoute>} />
           <Route path="whisperflow" element={<PrivateRoute><WhisperFlow /></PrivateRoute>} />
