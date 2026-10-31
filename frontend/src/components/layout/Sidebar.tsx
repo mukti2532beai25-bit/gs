@@ -62,6 +62,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       subtitle: '3D Data Cubes & Tally',
       icon: FileSpreadsheet,
     },
+    {
+      to: '/database?tab=business',
+      label: 'Business Settings',
+      subtitle: 'Store Profile & GSTIN',
+      icon: Store,
+    },
   ];
 
   return (

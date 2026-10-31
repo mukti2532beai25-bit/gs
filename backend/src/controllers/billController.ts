@@ -47,27 +47,46 @@ export async function getBillStats(req: AuthenticatedRequest, res: Response, nex
   try {
     const businessId = req.user!.businessId!;
 
-    const [total, pending, reviewed, approved, aggregates] = await Promise.all([
+    const [total, pending, reviewed, approved, totalCustomers, totalProducts, aggregates, recentCorrections] = await Promise.all([
       prisma.bill.count({ where: { businessId } }),
       prisma.bill.count({ where: { businessId, status: 'pending' } }),
       prisma.bill.count({ where: { businessId, status: 'reviewed' } }),
       prisma.bill.count({ where: { businessId, status: 'approved' } }),
+      prisma.customer.count({ where: { businessId } }),
+      prisma.product.count({ where: { businessId } }),
       prisma.bill.aggregate({
         where: { businessId },
         _sum: { totalAmount: true },
         _avg: { confidence: true },
       }),
+      prisma.correction.findMany({
+        where: { bill: { businessId } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { bill: { select: { billNumber: true, vendorName: true } } },
+      }),
     ]);
+
+    const processed = reviewed + approved;
 
     res.json({
       success: true,
       data: {
         total,
+        processed,
         pending,
         reviewed,
         approved,
+        totalCustomers,
+        totalProducts,
         totalRevenue: aggregates._sum.totalAmount || 0,
         avgConfidence: aggregates._avg.confidence || 0,
+        recentActivity: recentCorrections.map((c) => ({
+          id: c.id,
+          action: `Corrected ${c.fieldName} via ${c.source}`,
+          billRef: c.bill.billNumber || c.bill.vendorName || 'Bill',
+          time: c.createdAt,
+        })),
       },
     });
   } catch (error) {

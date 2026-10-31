@@ -167,11 +167,20 @@ export interface ExportRecord {
 // ── Dashboard Stats ───────────────────────────────────────────────────────────
 export interface DashboardStats {
   total: number;
+  processed: number;
   pending: number;
   reviewed: number;
   approved: number;
+  totalCustomers: number;
+  totalProducts: number;
   totalRevenue: number;
   avgConfidence: number;
+  recentActivity: Array<{
+    id: string;
+    action: string;
+    billRef: string;
+    time: string;
+  }>;
 }
 
 // ── API Response wrappers ─────────────────────────────────────────────────────
