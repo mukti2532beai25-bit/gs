@@ -134,3 +134,13 @@ export const exportApi = {
   },
   history: () => apiFetch<any[]>('/api/export/history'),
 };
+
+// ── Voice & WhisperFlow ───────────────────────────────────────────────────────
+export const voiceApi = {
+  parse: (data: { transcript: string; language?: string; billId?: string }) =>
+    apiFetch<{ success: boolean; data: any }>('/api/voice/parse', { method: 'POST', body: JSON.stringify(data) }),
+  apply: (data: { billId: string; action: any }) =>
+    apiFetch<{ success: boolean; data: any; offlineNotice?: string }>('/api/voice/apply', { method: 'POST', body: JSON.stringify(data) }),
+  history: () =>
+    apiFetch<{ success: boolean; data: any[]; offlineNotice?: string }>('/api/voice/history'),
+};

@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { processVoiceCommand } from '../controllers/voiceController.js';
+import { Router, Request, Response } from 'express';
+import { processVoiceCommand, applyVoiceCommand, getVoiceHistory } from '../controllers/voiceController.js';
 import { getNormalizationHealth } from '../controllers/normalizationController.js';
 import { generateExport, getExportHistory } from '../controllers/exportController.js';
 import { checkDatabaseConnection } from '../config/database.js';
@@ -9,6 +9,9 @@ import { authenticate, requireBusiness } from '../middleware/auth.js';
 export const voiceRouter = Router();
 voiceRouter.use(authenticate, requireBusiness);
 voiceRouter.post('/', processVoiceCommand);
+voiceRouter.post('/parse', processVoiceCommand);
+voiceRouter.post('/apply', applyVoiceCommand);
+voiceRouter.get('/history', getVoiceHistory);
 
 // Normalization router
 export const normalizationRouter = Router();
@@ -23,7 +26,7 @@ exportRouter.get('/history', getExportHistory);
 
 // Health router
 export const healthRouter = Router();
-healthRouter.get('/', async (_req, res) => {
+healthRouter.get('/', async (_req: Request, res: Response) => {
   const dbStatus = await checkDatabaseConnection();
   res.json({
     status: 'ok',
